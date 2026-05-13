@@ -8,7 +8,7 @@ version = '7.0.1' // Marker: Build for Spring Framework 7.0.1
 
 ext {
 	set('spring-security.version', '7.0.0')
-	set('samlVersion', '5.2.1')
+	set('samlVersion', '5.2.2')
 }
 
 repositories {
