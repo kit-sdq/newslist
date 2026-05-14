@@ -57,7 +57,7 @@ class NewsListIntegrationTest {
         }
     }
 
-    /** SimpleSAMLphp test IdP container (based on kristophjunge/test-saml-idp). */
+    /** SimpleSAMLphp test IdP container (jamedjo/test-saml-idp). */
     @Container
     static final GenericContainer<?> samlIdp = new GenericContainer<>("jamedjo/test-saml-idp")
             .withEnv("SIMPLESAMLPHP_SP_ENTITY_ID",
@@ -156,8 +156,8 @@ class NewsListIntegrationTest {
     void newsItemTitleIsDisplayedCorrectly() throws Exception {
         try (WebClient client = newWebClient()) {
             HtmlPage page = loginAs(client, "user1", "user1pass");
-            // Title = filename without extension, underscores removed
-            // "News Item 1" -> "News Item 1" (no underscores to remove)
+            // Title = filename without .csv extension, with underscores stripped
+            // "News Item 1.csv" -> "News Item 1" (spaces are kept; only underscores are removed)
             assertThat(page.getBody().asNormalizedText()).contains("News Item 1");
         }
     }
