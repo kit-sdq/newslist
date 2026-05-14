@@ -30,8 +30,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>Default IdP test users (uid / password / email):</p>
  * <ul>
- *   <li>user1 / user1pass / user1@example.com  – uid attribute value: {@code 1}</li>
- *   <li>user2 / user2pass / user2@example.com  – uid attribute value: {@code 2}</li>
+ *   <li>user1 / user1pass / user_1@example.com  – uid attribute value: {@code 1}</li>
+ *   <li>user2 / user2pass / user_2@example.com  – uid attribute value: {@code 2}</li>
  * </ul>
  *
  * <p>Test CSV news files only contain entries for uid {@code 1}, so user1 sees
@@ -144,7 +144,7 @@ class NewsListIntegrationTest {
     void emailAddressFromSamlAttributeIsDisplayed() throws Exception {
         try (WebClient client = newWebClient()) {
             HtmlPage page = loginAs(client, "user1", "user1pass");
-            assertThat(page.getBody().asNormalizedText()).containsAnyOf("user1@example.com", "anonymous");
+            assertThat(page.getBody().asNormalizedText()).containsAnyOf("user_1@example.com", "anonymous");
         }
     }
 
@@ -193,6 +193,6 @@ class NewsListIntegrationTest {
         // Submit the form; HtmlUnit follows the SAMLResponse POST back to the SP
         List<HtmlElement> submitButtons = loginForm.getByXPath(".//button[@type='submit'] | .//input[@type='submit']");
         assertThat(submitButtons).isNotEmpty();
-        return submitButtons.get(0).click();
+        return submitButtons.getFirst().click();
     }
 }
