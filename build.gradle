@@ -41,3 +41,6 @@ dependencies {
 	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 }
 
+tasks.named('test') {
+	useJUnitPlatform()
+}
