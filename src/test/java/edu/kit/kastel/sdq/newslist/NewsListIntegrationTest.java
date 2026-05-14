@@ -3,7 +3,6 @@ package edu.kit.kastel.sdq.newslist;
 import org.htmlunit.WebClient;
 import org.htmlunit.html.HtmlElement;
 import org.htmlunit.html.HtmlForm;
-import org.htmlunit.html.HtmlInput;
 import org.htmlunit.html.HtmlPage;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -18,6 +17,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -186,11 +186,12 @@ class NewsListIntegrationTest {
 
         // Fill in the SimpleSAMLphp exampleauth:UserPass login form
         HtmlForm loginForm = loginPage.getForms().get(0);
-        loginForm.<HtmlInput>getInputByName("username").setValue(username);
-        loginForm.<HtmlInput>getInputByName("password").setValue(password);
+        loginForm.getInputByName("username").setValue(username);
+        loginForm.getInputByName("password").setValue(password);
 
         // Submit the form; HtmlUnit follows the SAMLResponse POST back to the SP
-        HtmlElement submitButton = loginForm.getOneHtmlElementByAttribute("input", "type", "submit");
-        return submitButton.click();
+        List<HtmlElement> submitButtons = loginForm.getByXPath(".//button[@type='submit'] | .//input[@type='submit']");
+        assertThat(submitButtons).isNotEmpty();
+        return submitButtons.get(0).click();
     }
 }
