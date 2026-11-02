@@ -4,7 +4,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./news:/usr/src/newslist/config/news:ro
+      - ./news:/usr/src/newslist/config/news
       - ./application.yml:/usr/src/newslist/config/application.yml:ro
     depends_on:
       - saml

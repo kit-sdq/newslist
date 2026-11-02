@@ -1,9 +1,11 @@
 package edu.kit.kastel.sdq.newslist.config;
 
+import edu.kit.kastel.sdq.newslist.service.AdminAccess;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.saml2.provider.service.metadata.OpenSaml5MetadataResolver;
@@ -29,8 +31,10 @@ public class SecurityConfiguration {
     }
 
     @Bean
-    SecurityFilterChain app(HttpSecurity http) throws Exception {
-        http.authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated()).saml2Login(Customizer.withDefaults());
+    SecurityFilterChain app(HttpSecurity http, AdminAccess adminAccess) throws Exception {
+        http.authorizeHttpRequests(authorize -> authorize
+                .requestMatchers("/admin", "/admin/**").access((auth, ctx) -> new AuthorizationDecision(adminAccess.isAdmin(auth.get())))
+                .anyRequest().authenticated()).saml2Login(Customizer.withDefaults());
         return http.build();
     }
 
