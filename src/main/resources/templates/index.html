@@ -1,27 +1,19 @@
 <!doctype html>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org"
-      xmlns:sec="https://www.thymeleaf.org/thymeleaf-extras-springsecurity5" lang="en">
-<head>
-    <title>News List</title>
-    <meta charset="utf-8"/>
-    <link th:rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
-</head>
+<html xmlns:th="https://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head('News List')}"></head>
 <body>
-<main role="main" class="container">
-    <h1 class="mt-5">SDQ-NewsList</h1>
-    <p class="lead">You are successfully identified as <b th:text="${emailAddress}"></b>. Looking for News via '<b
-            th:text="${saml2key}"></b>'.</p>
-    <h2 class="mt-2">Your News</h2>
-    <div class="list-group" th:each="newsItem : ${news}">
-        <a href="#" class="list-group-item">
-            <div class="d-flex gap-2">
-                <div>
-                    <div class="fw-bold" th:text="${newsItem.getTitle()}"></div>
-                    <p class="mb-0 opacity-75" th:text="${newsItem.getContent()}"></p>
-                </div>
-            </div>
-        </a>
+<nav th:replace="~{fragments/layout :: navbar('news')}"></nav>
+<main class="container py-4">
+    <h1 class="h3 mb-3">Your News</h1>
+    <div class="list-group" th:if="${!#lists.isEmpty(news)}">
+        <div class="list-group-item" th:each="newsItem : ${news}">
+            <h2 class="h6 fw-bold mb-1" th:text="${newsItem.getTitle()}"></h2>
+            <p class="mb-0 opacity-75" style="white-space: pre-line" th:text="${newsItem.getContent()}"></p>
+        </div>
     </div>
+    <div class="alert alert-secondary" th:if="${#lists.isEmpty(news)}">No news for you right now.</div>
+    <p class="text-body-secondary small mt-4">Identified as <span th:text="${emailAddress}"></span>, looking for news via
+        '<span th:text="${saml2key}"></span>'.</p>
 </main>
 </body>
 </html>

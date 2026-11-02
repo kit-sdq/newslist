@@ -1,6 +1,8 @@
 package edu.kit.kastel.sdq.newslist;
 
 import org.htmlunit.WebClient;
+import org.htmlunit.html.HtmlFileInput;
+import org.htmlunit.html.HtmlButton;
 import org.htmlunit.html.HtmlElement;
 import org.htmlunit.html.HtmlForm;
 import org.htmlunit.html.HtmlPage;
@@ -15,7 +17,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 
@@ -85,9 +88,20 @@ class NewsListIntegrationTest {
         registry.add("news.mail-saml2-key", () -> "email");
 
         // Point news service at the test CSV files on the classpath
-        URI newsDir = NewsListIntegrationTest.class.getClassLoader().getResource("news").toURI();
-        registry.add("news.csv-path", () -> newsDir.getPath());
+        // (copied to a temp directory so uploads never modify the classpath resources)
+        Path source = Path.of(NewsListIntegrationTest.class.getClassLoader().getResource("news").toURI());
+        Path newsDir = Files.createTempDirectory("newslist-test");
+        try (var files = Files.list(source)) {
+            for (Path f : files.toList()) {
+                Files.copy(f, newsDir.resolve(f.getFileName()));
+            }
+        }
+        registry.add("news.csv-path", () -> newsDir.toString());
+        registry.add("news.admin.ids", () -> "1");
         registry.add("news.csv-format", () -> "Default");
+
+        // Small upload limit so the oversized-upload test stays fast
+        registry.add("news.admin.max-upload-size", () -> "100KB");
     }
 
     // -------------------------------------------------------------------------
@@ -160,6 +174,102 @@ class NewsListIntegrationTest {
             // Title = filename without .csv extension, with underscores stripped
             // "News Item 1.csv" -> "News Item 1" (spaces are kept; only underscores are removed)
             assertThat(page.getBody().asNormalizedText()).contains("News Item 1");
+        }
+    }
+
+    @Test
+    void nonAdminGetsForbiddenOnAdminPage() throws Exception {
+        try (WebClient client = newWebClient()) {
+            loginAs(client, "user2", "user2pass");
+            var response = client.getPage("http://localhost:" + SERVER_PORT + "/admin").getWebResponse();
+            assertThat(response.getStatusCode()).isEqualTo(403);
+        }
+    }
+
+    @Test
+    void adminSeesAdminPageWithFiles() throws Exception {
+        try (WebClient client = newWebClient()) {
+            loginAs(client, "user1", "user1pass");
+            HtmlPage page = client.getPage("http://localhost:" + SERVER_PORT + "/admin");
+            assertThat(page.getWebResponse().getStatusCode()).isEqualTo(200);
+            assertThat(page.getBody().asNormalizedText()).contains("News Item 1.csv");
+        }
+    }
+
+    @Test
+    void adminLinkIsShownOnlyToAdmins() throws Exception {
+        try (WebClient client = newWebClient()) {
+            HtmlPage page = loginAs(client, "user1", "user1pass");
+            assertThat(page.getBody().asNormalizedText()).contains("Admin");
+        }
+        try (WebClient client = newWebClient()) {
+            HtmlPage page = loginAs(client, "user2", "user2pass");
+            assertThat(page.getBody().asNormalizedText()).doesNotContain("Admin");
+        }
+    }
+
+    @Test
+    void uploadAndDeleteAreVisibleToUsersImmediately() throws Exception {
+        Path csv = Files.createTempDirectory("newslist-upload").resolve("Upload Test.csv");
+        Files.writeString(csv, "2,Uploaded item\n");
+        try (WebClient admin = newWebClient(); WebClient user = newWebClient()) {
+            loginAs(admin, "user1", "user1pass");
+            HtmlPage userPage = loginAs(user, "user2", "user2pass");
+            assertThat(userPage.getBody().asNormalizedText()).doesNotContain("Uploaded item");
+
+            HtmlPage page = admin.getPage("http://localhost:" + SERVER_PORT + "/admin");
+            HtmlForm form = page.getForms().stream().filter(f -> f.getActionAttribute().endsWith("/admin/upload")).findFirst().orElseThrow();
+            HtmlFileInput input = form.getInputByName("file");
+            input.setValue(csv.toAbsolutePath().toString());
+            HtmlPage result = form.<HtmlButton>getFirstByXPath(".//button[@type='submit']").click();
+            assertThat(result.getBody().asNormalizedText()).contains("Uploaded Upload Test.csv").contains("Upload Test.csv");
+
+            userPage = user.getPage("http://localhost:" + SERVER_PORT + "/");
+            assertThat(userPage.getBody().asNormalizedText()).contains("Uploaded item");
+
+            HtmlForm del = result.getForms().stream()
+                    .filter(f -> f.getActionAttribute().endsWith("/admin/delete"))
+                    .filter(f -> f.getInputByName("path").getValue().equals("Upload Test.csv"))
+                    .findFirst().orElseThrow();
+            result = del.<HtmlButton>getFirstByXPath(".//button[@type='submit']").click();
+            assertThat(result.getBody().asNormalizedText()).contains("Deleted Upload Test.csv");
+
+            userPage = user.getPage("http://localhost:" + SERVER_PORT + "/");
+            assertThat(userPage.getBody().asNormalizedText()).doesNotContain("Uploaded item");
+        }
+    }
+
+    @Test
+    void nonCsvUploadIsRejected() throws Exception {
+        Path txt = Files.createTempDirectory("newslist-upload").resolve("bad.txt");
+        Files.writeString(txt, "2,Bad item\n");
+        try (WebClient admin = newWebClient()) {
+            loginAs(admin, "user1", "user1pass");
+            HtmlPage page = admin.getPage("http://localhost:" + SERVER_PORT + "/admin");
+            HtmlForm form = page.getForms().stream().filter(f -> f.getActionAttribute().endsWith("/admin/upload")).findFirst().orElseThrow();
+            HtmlFileInput input = form.getInputByName("file");
+            input.setValue(txt.toAbsolutePath().toString());
+            HtmlPage result = form.<HtmlButton>getFirstByXPath(".//button[@type='submit']").click();
+            assertThat(result.getBody().asNormalizedText()).contains("Only .csv files are accepted");
+        }
+    }
+
+    @Test
+    void oversizedUploadShowsErrorMessage() throws Exception {
+        Path csv = Files.createTempDirectory("newslist-upload").resolve("Too Large.csv");
+        Files.writeString(csv, ("2," + "x".repeat(1000) + "\n").repeat(200)); // ~200KB > 100KB limit
+        try (WebClient admin = newWebClient()) {
+            loginAs(admin, "user1", "user1pass");
+            // Disable JS after login (the SAML POST binding needs it), so the client-side size check is
+            // bypassed and the server-side check is exercised
+            admin.getOptions().setJavaScriptEnabled(false);
+            HtmlPage page = admin.getPage("http://localhost:" + SERVER_PORT + "/admin");
+            HtmlForm form = page.getForms().stream().filter(f -> f.getActionAttribute().endsWith("/admin/upload")).findFirst().orElseThrow();
+            HtmlFileInput input = form.getInputByName("file");
+            input.setValue(csv.toAbsolutePath().toString());
+            HtmlPage result = form.<HtmlButton>getFirstByXPath(".//button[@type='submit']").click();
+            assertThat(result.getBody().asNormalizedText()).contains("The file is too large");
+            assertThat(result.getBody().asNormalizedText()).doesNotContain("Too Large.csv");
         }
     }
 

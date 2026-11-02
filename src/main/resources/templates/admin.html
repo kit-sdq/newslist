@@ -1,0 +1,96 @@
+<!doctype html>
+<html xmlns:th="https://www.thymeleaf.org" lang="en">
+<head th:replace="~{fragments/layout :: head('News List - Admin')}"></head>
+<body>
+<nav th:replace="~{fragments/layout :: navbar('admin')}"></nav>
+<main class="container py-4">
+    <h1 class="h3 mb-3">Manage news files</h1>
+
+    <div class="alert alert-success alert-dismissible fade show" role="alert" th:if="${success}">
+        <span th:text="${success}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <div class="alert alert-warning alert-dismissible fade show" role="alert" th:if="${warning}">
+        <span th:text="${warning}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert" th:if="${error}">
+        <span th:text="${error}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Upload CSV</div>
+        <div class="card-body">
+            <form id="upload-form" th:action="@{/admin/upload}" method="post" enctype="multipart/form-data"
+                  th:attr="data-max-bytes=${maxUploadBytes}">
+                <div class="mb-2">
+                    <label for="file" class="form-label">CSV file</label>
+                    <input type="file" id="file" name="file" accept=".csv" class="form-control" required/>
+                    <div class="invalid-feedback" id="file-too-large">
+                        The file is too large (maximum <span th:text="${maxUploadDisplay}"></span>).
+                    </div>
+                    <div class="form-text">Uploading a file with the same name replaces the existing file.
+                        Maximum size: <span th:text="${maxUploadDisplay}"></span>.</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </form>
+            <p class="text-body-secondary small mt-3 mb-0">
+                Format: one <code>key,content</code> pair per row. The key is matched against the user's ID; the
+                file name (without <code>.csv</code>, underscores removed) becomes the title.
+            </p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">Files</div>
+        <div class="card-body p-0">
+            <div class="table-responsive" th:if="${!#lists.isEmpty(files)}">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                    <tr><th>Path</th><th class="d-none d-lg-table-cell">Title</th><th class="d-none d-sm-table-cell">Records</th><th>Size</th><th class="d-none d-md-table-cell">Modified</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="f : ${files}">
+                        <td th:text="${f.path}"></td>
+                        <td class="d-none d-lg-table-cell" th:text="${f.title}"></td>
+                        <td class="d-none d-sm-table-cell" th:text="${f.records}"></td>
+                        <td class="text-nowrap" th:text="${f.sizeDisplay()}"></td>
+                        <td class="d-none d-md-table-cell text-nowrap" th:text="${f.lastModifiedDisplay()}"></td>
+                        <td class="text-end">
+                            <form th:action="@{/admin/delete}" method="post"
+                                  th:attr="onsubmit=|return confirm('Delete ${#strings.escapeJavaScript(f.path)}?')|">
+                                <input type="hidden" name="path" th:value="${f.path}"/>
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p th:if="${#lists.isEmpty(files)}" class="text-body-secondary p-3 mb-0">No CSV files.</p>
+        </div>
+    </div>
+
+    <form th:action="@{/admin/reload}" method="post">
+        <button type="submit" class="btn btn-secondary">Reload from disk</button>
+    </form>
+</main>
+<script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+<script>
+    (function () {
+        const form = document.getElementById('upload-form');
+        const input = document.getElementById('file');
+        const max = Number(form.dataset.maxBytes);
+        const tooLarge = () => input.files.length > 0 && input.files[0].size > max;
+        input.addEventListener('change', () => input.classList.toggle('is-invalid', tooLarge()));
+        form.addEventListener('submit', (e) => {
+            if (tooLarge()) {
+                e.preventDefault();
+                input.classList.add('is-invalid');
+            }
+        });
+    })();
+</script>
+</body>
+</html>

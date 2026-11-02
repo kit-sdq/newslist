@@ -1,4 +1,10 @@
 spring:
+  servlet:
+    multipart:
+      # Hard cap for any multipart request (exceeding it yields a bare HTTP 413).
+      # The user-facing upload limit is news.admin.max-upload-size and must be lower.
+      max-file-size: 50MB
+      max-request-size: 50MB
   security:
     saml2:
       relyingparty:
@@ -20,6 +26,12 @@ news:
   # The saml2 attribute used as key
   saml2-key: # the saml2 key to use as key in csv files
   mail-saml2-key: # the saml2 key to get a name (e.g., the mail address)
+
+  # SAML2 attribute values (see saml2-key) of users allowed to use /admin. Empty: admin interface disabled.
+  admin:
+    ids: []
+    # Maximum size of an uploaded CSV file
+    max-upload-size: 10MB
 
 logging.level:
   org.springframework.security: WARN
