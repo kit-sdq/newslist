@@ -47,10 +47,14 @@ public class NewsService implements InitializingBean {
         return Path.of(csvPath).toAbsolutePath().normalize();
     }
 
+    /**
+     * @throws IOException if the csv root is missing, not a directory or cannot be read. An existing but empty
+     *                     directory yields an empty list.
+     */
     private List<Path> findCsvFiles() throws IOException {
         Path root = root();
         if (!Files.isDirectory(root)) {
-            return List.of();
+            throw new java.nio.file.NotDirectoryException(root.toString());
         }
         try (var stream = Files.walk(root)) {
             return stream.filter(Files::isRegularFile)
@@ -138,6 +142,10 @@ public class NewsService implements InitializingBean {
     public List<CsvFileInfo> listFiles() {
         List<CsvFileInfo> result = new ArrayList<>();
         Path root = root();
+        if (!Files.exists(root)) {
+            // Not created yet (happens on the first upload)
+            return result;
+        }
         try {
             for (Path file : findCsvFiles()) {
                 int records = parseFileOrWarn(file, new HashMap<>());
@@ -203,17 +211,18 @@ public class NewsService implements InitializingBean {
         } finally {
             Files.deleteIfExists(temp);
         }
-        reload();
-        return new UploadResult(name, counts.records(), counts.skipped());
+        boolean reloaded = reload();
+        return new UploadResult(name, counts.records(), counts.skipped(), reloaded);
     }
 
     /**
      * Deletes a CSV file below the csv path.
      *
      * @param relativePath path relative to the csv root
+     * @return {@code true} if the news index was refreshed afterwards (if not, users still see the previous news)
      * @throws IllegalArgumentException if the path is not a CSV file below the root
      */
-    public synchronized void delete(String relativePath) throws IOException {
+    public synchronized boolean delete(String relativePath) throws IOException {
         if (relativePath == null || relativePath.isBlank()) {
             throw new IllegalArgumentException("No file given.");
         }
@@ -233,7 +242,7 @@ public class NewsService implements InitializingBean {
             throw new IllegalArgumentException("Not a CSV file: " + relativePath);
         }
         Files.delete(target);
-        reload();
+        return reload();
     }
 
     /**

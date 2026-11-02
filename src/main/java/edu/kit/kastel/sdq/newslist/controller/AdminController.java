@@ -26,6 +26,8 @@ public class AdminController {
     private static final String FLASH_SUCCESS = "success";
     private static final String FLASH_WARNING = "warning";
     private static final String FLASH_ERROR = "error";
+    private static final String NOT_REFRESHED =
+            "but the news could not be refreshed because the CSV directory could not be read. Users still see the previous news.";
 
     private final NewsService newsService;
     private final AdminProperties adminProperties;
@@ -59,7 +61,11 @@ public class AdminController {
         }
         try {
             UploadResult result = newsService.store(file.getOriginalFilename(), file.getBytes());
-            redirect.addFlashAttribute(FLASH_SUCCESS, "Uploaded " + result.filename() + " (" + result.records() + " records).");
+            if (result.reloaded()) {
+                redirect.addFlashAttribute(FLASH_SUCCESS, "Uploaded " + result.filename() + " (" + result.records() + " records).");
+            } else {
+                redirect.addFlashAttribute(FLASH_ERROR, "Saved " + result.filename() + ", " + NOT_REFRESHED);
+            }
             if (result.skippedRows() > 0) {
                 redirect.addFlashAttribute(FLASH_WARNING, result.skippedRows()
                         + " row(s) did not have exactly two columns and were skipped.");
@@ -76,8 +82,11 @@ public class AdminController {
     @PostMapping("/admin/delete")
     public String delete(@RequestParam("path") String path, RedirectAttributes redirect) {
         try {
-            newsService.delete(path);
-            redirect.addFlashAttribute(FLASH_SUCCESS, "Deleted " + path + ".");
+            if (newsService.delete(path)) {
+                redirect.addFlashAttribute(FLASH_SUCCESS, "Deleted " + path + ".");
+            } else {
+                redirect.addFlashAttribute(FLASH_ERROR, "Deleted " + path + ", " + NOT_REFRESHED);
+            }
         } catch (IllegalArgumentException e) {
             redirect.addFlashAttribute(FLASH_ERROR, e.getMessage());
         } catch (IOException e) {

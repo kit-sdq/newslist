@@ -80,10 +80,32 @@ class NewsServiceTest {
             Files.writeString(tmp.resolve("other.csv"), "1,b\n");
             assertThat(s.reload()).isFalse();
             assertThat(s.getNewsForKey("1")).hasSize(1);
+            // Upload and delete still change the files, but report that the index was not refreshed
+            assertThat(s.store("third.csv", "1,c\n".getBytes()).reloaded()).isFalse();
+            assertThat(s.delete("third.csv")).isFalse();
+            assertThat(s.getNewsForKey("1")).hasSize(1);
         } finally {
             Files.setPosixFilePermissions(unreadable, PosixFilePermissions.fromString("rwx------"));
         }
         assertThat(s.reload()).isTrue();
         assertThat(s.getNewsForKey("1")).hasSize(2);
+    }
+
+    @Test
+    void reloadFailsAndKeepsNewsWhenRootIsMissing(@TempDir Path tmp) throws Exception {
+        Path root = Files.createDirectory(tmp.resolve("root"));
+        Files.writeString(root.resolve("news.csv"), "1,a\n");
+        NewsService s = service(root);
+        assertThat(s.getNewsForKey("1")).hasSize(1);
+
+        Files.move(root, tmp.resolve("moved"));
+        assertThat(s.reload()).isFalse();
+        assertThat(s.getNewsForKey("1")).hasSize(1);
+        assertThat(s.listFiles()).isEmpty();
+
+        // An existing but empty directory intentionally clears the news
+        Files.createDirectory(root);
+        assertThat(s.reload()).isTrue();
+        assertThat(s.getNewsForKey("1")).isEmpty();
     }
 }
