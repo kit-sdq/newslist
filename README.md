@@ -2,6 +2,16 @@
 
 Shows user-specific "news items" after SAML2 login. News items are loaded from CSV files on disk and matched against a SAML2 user attribute.
 
+## Screenshots
+
+| Your news | Admin interface |
+|---|---|
+| ![News list of a logged-in user](docs/screenshots/news.png) | ![Admin interface after uploading a CSV](docs/screenshots/admin.png) |
+
+| Dark mode | Mobile |
+|---|---|
+| ![Admin interface in dark mode](docs/screenshots/admin-dark.png) | <img src="docs/screenshots/news-mobile.png" alt="News list on a mobile device" width="300"> |
+
 ## Demo (Docker Compose)
 
 The `demo/` folder contains a ready-to-run setup including a test SAML IdP.
