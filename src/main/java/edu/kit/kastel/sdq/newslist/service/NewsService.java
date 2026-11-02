@@ -12,6 +12,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UncheckedIOException;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,6 +57,9 @@ public class NewsService implements InitializingBean {
                     .filter(p -> p.getFileName().toString().endsWith(".csv"))
                     .sorted()
                     .toList();
+        } catch (UncheckedIOException e) {
+            // Files.walk reports errors during iteration (e.g. an unreadable subdirectory) unchecked
+            throw e.getCause();
         }
     }
 
@@ -105,8 +111,11 @@ public class NewsService implements InitializingBean {
 
     /**
      * Re-parses all CSV files and atomically swaps the in-memory index.
+     *
+     * @return {@code true} if the index was rebuilt, {@code false} if the CSV directory could not be read
+     * (the previous index is kept in that case)
      */
-    public synchronized void reload() {
+    public synchronized boolean reload() {
         logger.debug("Parsing news items from CSVs");
         logger.debug("CSV path is " + csvPath + " , CSV format is " + csvFormat);
         Map<String, List<NewsItem>> fresh = new HashMap<>();
@@ -117,9 +126,10 @@ public class NewsService implements InitializingBean {
             }
         } catch (IOException e) {
             logger.warn("CSVs could not be parsed.", e);
-            return;
+            return false;
         }
         this.news = fresh;
+        return true;
     }
 
     /**
@@ -164,8 +174,14 @@ public class NewsService implements InitializingBean {
 
         ParseCounts counts;
         try {
-            counts = parse(new InputStreamReader(new java.io.ByteArrayInputStream(content), StandardCharsets.UTF_8),
+            // Strict decoder: reject invalid UTF-8 like the reload does, instead of silently replacing it
+            CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT);
+            counts = parse(new InputStreamReader(new java.io.ByteArrayInputStream(content), decoder),
                     titleOf(name), new HashMap<>());
+        } catch (CharacterCodingException e) {
+            throw new IllegalArgumentException("The file is not valid UTF-8. Please save it with UTF-8 encoding.");
         } catch (IOException | RuntimeException e) {
             throw new IllegalArgumentException("The file is not a valid CSV: " + e.getMessage());
         }
@@ -210,7 +226,10 @@ public class NewsService implements InitializingBean {
         }
         if (!target.startsWith(root) || target.equals(root)
                 || !target.getFileName().toString().endsWith(".csv")
-                || !Files.isRegularFile(target)) {
+                || !Files.isRegularFile(target)
+                // The lexical check above does not see symlinked directories: the real parent must be inside the
+                // real root. (A final symlink is fine, Files.delete removes the link itself.)
+                || !target.getParent().toRealPath().startsWith(root.toRealPath())) {
             throw new IllegalArgumentException("Not a CSV file: " + relativePath);
         }
         Files.delete(target);

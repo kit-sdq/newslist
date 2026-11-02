@@ -89,8 +89,12 @@ public class AdminController {
 
     @PostMapping("/admin/reload")
     public String reload(RedirectAttributes redirect) {
-        newsService.reload();
-        redirect.addFlashAttribute(FLASH_SUCCESS, "Reloaded from disk.");
+        if (newsService.reload()) {
+            redirect.addFlashAttribute(FLASH_SUCCESS, "Reloaded from disk.");
+        } else {
+            redirect.addFlashAttribute(FLASH_ERROR,
+                    "Reload failed: the CSV directory could not be read. Users still see the previous news.");
+        }
         return REDIRECT_ADMIN;
     }
 }
