@@ -68,7 +68,7 @@ Admins can upload and delete the news CSV files at `/admin`.
 
 - `news.admin.ids`: List of user IDs allowed to use the admin interface. Each value is compared against the SAML2 attribute configured via `news.saml2-key` (demo: `uid`, so `user1` with `uid` `1` is admin). An empty list (the default) disables the admin interface. Everybody else gets HTTP 403.
 - Uploads must be `.csv` files that parse with the configured `news.csv-format`; they are stored in the root of `news.csv-path` and replace a file with the same name. Rows without exactly two columns are skipped with a warning.
-- `news.admin.max-upload-size`: Maximum size of an uploaded CSV (default `10MB`). It must stay below `spring.servlet.multipart.max-file-size`/`max-request-size` (default config: `50MB`), which act as a hard cap answered with a bare HTTP 413.
+- `news.admin.max-upload-size`: Maximum size of an uploaded CSV (default `5MB`). It must stay below `spring.servlet.multipart.max-file-size`/`max-request-size` (default config: `8MB`), which act as a hard cap answered with a bare HTTP 413.
 - `news.csv-path` must be **writable** by the application, see [Writable storage](#writable-storage).
 
 ## Writable storage

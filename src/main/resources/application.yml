@@ -3,8 +3,8 @@ spring:
     multipart:
       # Hard cap for any multipart request (exceeding it yields a bare HTTP 413).
       # The user-facing upload limit is news.admin.max-upload-size and must be lower.
-      max-file-size: 50MB
-      max-request-size: 50MB
+      max-file-size: 8MB
+      max-request-size: 8MB
   security:
     saml2:
       relyingparty:
@@ -31,7 +31,7 @@ news:
   admin:
     ids: []
     # Maximum size of an uploaded CSV file
-    max-upload-size: 10MB
+    max-upload-size: 5MB
 
 logging.level:
   org.springframework.security: WARN

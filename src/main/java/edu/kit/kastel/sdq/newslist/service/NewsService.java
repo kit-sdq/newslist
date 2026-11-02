@@ -58,7 +58,7 @@ public class NewsService implements InitializingBean {
     }
 
     private static String titleOf(String fileName) {
-        return fileName.substring(0, fileName.length() - 4).replaceAll("[_]", "");
+        return fileName.substring(0, fileName.length() - 4).replace("_", "");
     }
 
     /**
@@ -90,6 +90,20 @@ public class NewsService implements InitializingBean {
     }
 
     /**
+     * Parses a file into the map, logging (instead of throwing) read errors.
+     *
+     * @return the number of valid records, or 0 if the file could not be read
+     */
+    private int parseFileOrWarn(Path file, Map<String, List<NewsItem>> target) {
+        try {
+            return parseFile(file, target).records();
+        } catch (IOException e) {
+            logger.warn("File " + file + " could not be read.", e);
+            return 0;
+        }
+    }
+
+    /**
      * Re-parses all CSV files and atomically swaps the in-memory index.
      */
     public synchronized void reload() {
@@ -99,11 +113,7 @@ public class NewsService implements InitializingBean {
         try {
             for (Path file : findCsvFiles()) {
                 logger.debug("Parsing " + file);
-                try {
-                    parseFile(file, fresh);
-                } catch (IOException e) {
-                    logger.warn("File " + file + " could not be read.", e);
-                }
+                parseFileOrWarn(file, fresh);
             }
         } catch (IOException e) {
             logger.warn("CSVs could not be parsed.", e);
@@ -120,12 +130,7 @@ public class NewsService implements InitializingBean {
         Path root = root();
         try {
             for (Path file : findCsvFiles()) {
-                int records = 0;
-                try {
-                    records = parseFile(file, new HashMap<>()).records();
-                } catch (IOException e) {
-                    logger.warn("File " + file + " could not be read.", e);
-                }
+                int records = parseFileOrWarn(file, new HashMap<>());
                 result.add(new CsvFileInfo(root.relativize(file).toString().replace('\\', '/'),
                         titleOf(file.getFileName().toString()), Files.size(file),
                         Files.getLastModifiedTime(file).toInstant(), records));

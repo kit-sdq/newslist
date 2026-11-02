@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title th:text="${title}">SDQ-NewsList</title>
     <script>
-        document.documentElement.setAttribute('data-bs-theme',
-            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.dataset.bsTheme =
+            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     </script>
     <link rel="stylesheet" th:href="@{/webjars/bootstrap/css/bootstrap.min.css}"/>
 </head>
