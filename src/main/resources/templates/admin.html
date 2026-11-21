@@ -59,7 +59,8 @@
                         <td class="d-none d-md-table-cell text-nowrap" th:text="${f.lastModifiedDisplay()}"></td>
                         <td class="text-end">
                             <form th:action="@{/admin/delete}" method="post"
-                                  th:attr="onsubmit=|return confirm('Delete ${#strings.escapeJavaScript(f.path)}?')|">
+                                  th:data-path="${f.path}"
+                                  onsubmit="return confirm('Delete ' + this.dataset.path + '?')">
                                 <input type="hidden" name="path" th:value="${f.path}"/>
                                 <button type="submit" class="btn btn-outline-danger btn-sm">Delete</button>
                             </form>
